@@ -249,7 +249,7 @@ class LocalKernelBenchDataset(BaseDataset):
                 continue
 
             path = os.path.join(problem_dir, file_name)
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 code = f.read()
 
             self._problems[problem_id] = Problem(
