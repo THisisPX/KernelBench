@@ -62,7 +62,7 @@ class GenerationConfig:
     gpu_arch: str = "Ada"
     precision: str = "fp32"
     verbose: bool = True
-    skip_verification: bool = False  # Skip GPU verification (useful when no GPU available)
+    skip_verification: bool = True  # Default True: generation only, no GPU needed
 
 
 def load_prompt_templates() -> dict:
@@ -376,7 +376,13 @@ def main():
         "--verbose", action="store_true", help="Verbose output"
     )
     parser.add_argument(
-        "--skip-verification", action="store_true", help="Skip GPU verification (use when no GPU available)"
+        "--skip-verification", action="store_true", default=True, help="Skip GPU verification (default: True, generation only)"
+    )
+    parser.add_argument(
+        "--no-skip-verification", dest="skip_verification", action="store_false", help="Enable GPU verification (requires GPU)"
+    )
+    parser.add_argument(
+        "--output", default=None, help="Output JSONL path (default: {run_name}_raw.jsonl)"
     )
 
     args = parser.parse_args()
@@ -404,9 +410,12 @@ def main():
         set_gpu_arch([config.gpu_arch])
 
     # Output file
-    output_path = os.path.join(
-        REPO_TOP_DIR, f"{config.run_name}.jsonl"
-    )
+    if args.output:
+        output_path = args.output if os.path.isabs(args.output) else os.path.join(REPO_TOP_DIR, args.output)
+    else:
+        output_path = os.path.join(REPO_TOP_DIR, f"{config.run_name}_raw.jsonl")
+
+    print(f"Output: {output_path}")
 
     # Sample problems
     print(f"Sampling {config.num_samples} problems from KernelBench...")
