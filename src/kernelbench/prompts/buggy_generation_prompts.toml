@@ -1,0 +1,125 @@
+# Prompt templates for generating buggy GPU kernel code for code repair training/evaluation
+
+[meta]
+version = "1.0"
+description = "Prompts for generating intentional bugs in GPU kernel code"
+
+[bug_types]
+description = "Bug types for buggy code generation"
+
+[bug_types.arithmetic_incorrectness]
+description = "Wrong operation in computation"
+examples = [
+    "Multiplying by the transposed matrix instead of the original",
+    "Using addition instead of multiplication",
+    "Applying activation function twice instead of once",
+]
+
+[bug_types.indexing_error]
+description = "Incorrect thread/index calculation"
+examples = [
+    "Off-by-one error in thread indexing",
+    "Wrong dimension ordering in tensor access",
+    "Incorrect stride calculation for shared memory",
+]
+
+[bug_types.memory_access_violation]
+description = "Memory access pattern errors"
+examples = [
+    "Bank conflicts due to incorrect access pattern",
+    "Uncoalesced memory access causing performance degradation",
+    "Wrong shared memory tile size leading to incorrect results",
+]
+
+[bug_types.dtype_mismatch]
+description = "Operating on wrong precision"
+examples = [
+    "Mixing fp16 and fp32 without proper conversion",
+    "Casting to wrong dtype causing precision loss",
+    "Performing operations on bfloat16 when float32 expected",
+]
+
+[bug_types.boundary_condition]
+description = "Edge cases not handled"
+examples = [
+    "Not handling zero-sized dimensions correctly",
+    "Missing check for empty tensor",
+    "Incorrect handling of broadcasted dimensions",
+]
+
+[bug_types.algorithm_wrong]
+description = "Correct implementation technique but wrong algorithm"
+examples = [
+    "Using naive algorithm when more efficient one expected",
+    "Implementing wrong reduction order",
+    "Using incorrect softmax formulation",
+]
+
+[bug_types.operator_fusion_error]
+description = "Incorrect fusion of operators"
+examples = [
+    "Fusing operators in wrong order",
+    "Applying activation before and after fusion incorrectly",
+    "Incorrect residual connection in fused kernel",
+]
+
+[bug_types.initialization_error]
+description = "Wrong initial values"
+examples = [
+    "Initializing bias to zeros instead of random values",
+    "Using wrong initial values for running stats in normalization",
+    "Incorrect weight initialization for specific layer type",
+]
+
+[templates]
+# System prompt for buggy code generation
+system_prompt = """You are a GPU kernel programming expert. Your task is to create INTENTIONAL BUGS in correct GPU kernel code.
+
+CRITICAL REQUIREMENTS:
+1. The buggy code MUST compile and run without errors
+2. The buggy code MUST produce DIFFERENT outputs than the reference for some inputs
+3. The bug should be subtle - not obvious syntax errors or obviously wrong code
+4. You are generating training data for code repair - make bugs realistic
+
+BUG TYPES:
+{bug_type_list}
+
+Choose ONE specific bug type and create ONE corresponding bug in the code.
+The bug should be plausible - something that could accidentally happen during development.
+
+Return your response as a JSON object with these exact fields:
+- "buggy_code": The complete buggy Python/CUDA code
+- "bug_type": The type of bug you introduced
+- "bug_description": Brief natural language description of the bug
+- "expected_behavior": What the CORRECT code should produce (in 1-2 sentences)"""
+
+# User prompt template
+user_prompt = """Here is a correct GPU kernel implementation:
+
+```python
+{ref_arch_src}
+```
+
+Your task: Create a BUGGY version of this code that:
+1. Compiles successfully (no syntax or compilation errors)
+2. Produces INCORRECT results (output mismatch with the correct version)
+3. Contains a subtle bug from this category: {bug_type}
+4. The bug should NOT be obvious - it should look plausible at first glance
+
+IMPORTANT CONVENTIONS:
+- The original code defines a class named "Model". Your buggy version MUST use the class name "ModelNew" (NOT "Model")
+- Keep the same function signatures for get_inputs() and get_init_inputs()
+- The ModelNew class should have the same interface as the Model class
+
+Bug type: {bug_type}
+Bug description hint: {bug_description_hint}
+
+Output your response as a JSON object with these exact fields:
+{{
+    "buggy_code": "<complete buggy Python code with class name ModelNew>",
+    "bug_type": "{bug_type}",
+    "bug_description": "<1-2 sentence description of the bug you introduced>",
+    "expected_behavior": "<what the correct code should produce>"
+}}
+
+IMPORTANT: Output ONLY the JSON object, no other text or explanation."""

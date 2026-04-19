@@ -85,12 +85,84 @@ def set_gpu_arch(arch_list: list[str]):
     elif amd_archs:
         os.environ["PYTORCH_ROCM_ARCH"] = ";".join(amd_archs)
 
+def query_llm(
+    prompt: str | list[dict],
+    system_prompt: str = "You are a helpful assistant",
+    temperature: float = 0.7,
+    max_tokens: int = 8192,
+    api_key: str = None,
+    api_base: str = None,
+    model: str = None,
+    max_retries: int = 3,
+    retry_interval: float = 1.0,
+):
+    """
+    Query an OpenAI-compatible LLM API with custom endpoint.
+
+    Args:
+        prompt: User prompt string or list of message dicts with role/content
+        system_prompt: System prompt (ignored if prompt is list with system message)
+        temperature: Sampling temperature
+        max_tokens: Max output tokens
+        api_key: API key for authentication
+        api_base: Base URL for the API (e.g., "https://uni-api.cstcloud.cn/v1")
+        model: Model name (e.g., "gpt-oss-120b")
+        max_retries: Number of retries on failure
+        retry_interval: Seconds between retries
+
+    Returns:
+        The generated text content from the LLM
+    """
+    import openai
+    import time
+
+    # Build messages list
+    messages = []
+    if isinstance(prompt, list) and prompt and prompt[0].get("role") == "system":
+        messages = prompt
+    else:
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        if isinstance(prompt, str):
+            messages.append({"role": "user", "content": prompt})
+        else:
+            messages.extend(prompt)
+
+    # Create client with custom endpoint
+    client_params = {"api_key": api_key, "timeout": None, "max_retries": 0}
+    if api_base:
+        client_params["base_url"] = api_base
+
+    client = openai.OpenAI(**client_params)
+
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            content = response.choices[0].message.content
+            if content is None:
+                raise ValueError(f"LLM returned None content")
+            return content
+        except Exception as e:
+            last_error = e
+            if attempt < max_retries - 1:
+                time.sleep(retry_interval * (2 ** attempt))  # exponential backoff
+            continue
+
+    raise RuntimeError(f"query_llm failed after {max_retries} retries: {last_error}")
+
+
 def query_server(
     prompt: str | list[dict],  # string if normal prompt, list of dicts if chat prompt,
     system_prompt: str = "You are a helpful assistant",  # only used for chat prompts
     temperature: float = 0.0,
     top_p: float = 1.0, # nucleus sampling
-    top_k: int = 50, 
+    top_k: int = 50,
     max_tokens: int = 128,  # max output tokens to generate
     num_completions: int = 1,
     server_port: int = 30000,  # only for local server hosted on SGLang
