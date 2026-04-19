@@ -25,6 +25,10 @@ import sys
 import time
 from dataclasses import dataclass
 
+# Disable LiteLLM remote model cost map fetch (causes timeout in China)
+os.environ["LITELLM_FAIL_ON_MODEL_MISMATCH"] = "False"
+os.environ["LITELLM_MODEL_BUMP_TRIGGER"] = "None"
+
 import torch
 import tomli
 
