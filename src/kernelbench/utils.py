@@ -129,7 +129,7 @@ def query_llm(
             messages.extend(prompt)
 
     # Create client with custom endpoint
-    client_params = {"api_key": api_key, "timeout": None, "max_retries": 0}
+    client_params = {"api_key": api_key, "timeout": 120.0}
     if api_base:
         client_params["base_url"] = api_base
 
