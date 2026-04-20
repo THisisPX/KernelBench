@@ -223,6 +223,7 @@ def main():
     parser.add_argument("--api-base", required=True, help="API base URL")
     parser.add_argument("--model", required=True, help="Model name")
     parser.add_argument("--problem-ids", required=True, help="Problem IDs, e.g., '1-50' or '1,3,5' or '1-10,20,30-40'")
+    parser.add_argument("--level", type=int, default=None, help="Specific level to generate for (1, 2, 3, or 4). If not specified, generates across all levels.")
     parser.add_argument("--bugs-per-problem", type=int, default=4, help="Number of bug types per problem")
     parser.add_argument("--output", required=True, help="Output JSONL path")
     parser.add_argument("--dataset-src", default="local", choices=["local", "huggingface"])
@@ -251,13 +252,15 @@ def main():
     print(f"Generating for {len(problem_ids)} problems, {args.bugs_per_problem} bugs each")
     print(f"Expected output: {len(problem_ids) * args.bugs_per_problem} samples")
 
-    # Load all datasets
+    # Load datasets - either specific level or all levels
     datasets = {}
-    for level in [1, 2, 3]:
+    levels_to_load = [args.level] if args.level else [1, 2, 3]
+    for level in levels_to_load:
         try:
             datasets[level] = construct_kernelbench_dataset(level=level, source=args.dataset_src)
-        except:
-            pass
+        except Exception as e:
+            if args.verbose:
+                print(f"Warning: Could not load level {level}: {e}")
 
     # Generate samples
     total_generated = 0
