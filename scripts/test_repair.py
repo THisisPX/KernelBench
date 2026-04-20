@@ -12,6 +12,8 @@ uv run python scripts/test_repair.py \
     --output repair_results.jsonl \
     --backend cuda \
     --num-samples 10
+
+ uv run python scripts/test_repair.py       --api-key "token-abc123"       --api-base "http://0.0.0.0:8002/v1"       --model base       --input torch_bugcode_bench.jsonl       --output repair_results.jsonl       --backend cuda       --num-samples 10
 """
 
 import argparse
